@@ -1,0 +1,8 @@
+rc.sh
+clouds.yml
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+inventory
