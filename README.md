@@ -27,13 +27,17 @@ terraform init
 terraform apply
 ```
 
-This will create a Kubernetes cluster with one master and two worker nodes by default. The master node will be accessible via SSH on port 22 via the floating IP address. The worker nodes will be accessible via SSH on port 22 via the private IP address. In order to access the worker nodes, you can use the proxy node (the master node).
+This will create a Kubernetes cluster with one master and two worker nodes by default. 
+
+The master node will be accessible via SSH on port 22 via the floating IP address. The worker nodes will be accessible via SSH on port 22 via the private IP address. In order to access the worker nodes, you can use the proxy node (the master node).
 
 Example for accessing the private IP address of a worker node:
 
 ```bash
 ssh -i /path/to/your/ssh/key -o ProxyCommand="ssh -i /path/to/your/ssh/key -W %h:%p ubuntu@<public_floating_ip>" ubuntu@<private_ip>
 ```
+
+## Accessing the Kubernetes cluster
 
 To copy the kubeconfig file to your local machine, execute the following command:
 
