@@ -1,0 +1,25 @@
+---
+- name: Generate join command
+  hosts: master
+  become: true
+  tasks:
+    - name: Generate join command on master node
+      command: kubeadm token create --print-join-command
+      register: join_command
+    - name: Set join command
+      set_fact:
+        join_command: "{{ join_command.stdout_lines[0] }}"
+
+- name: Join Kubernetes cluster
+  hosts: worker
+  become: true
+
+  tasks:
+    - name: k8s port is reachable
+      wait_for:
+        host: "{{ groups['master'][0] }}"
+        port: 6443
+        delay: 10
+        timeout: 60
+    - name: Join Kubernetes cluster
+      command: "{{ hostvars[groups['master'][0]]['join_command'] }}"

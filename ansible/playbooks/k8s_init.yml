@@ -1,0 +1,50 @@
+---
+- name: Initialize Kubernetes cluster
+  hosts: master
+  become: true
+  vars:
+    k8s_version: "1.28.0"
+    k8s_network_plugin: "calico"
+    k8s_network_plugin_version: "3.26.1"
+  
+  tasks:
+    # Master node specific tasks
+    - name: Create kubernetes config directory
+      file:
+        path: /etc/kubernetes
+        state: directory
+    - name: Create empty kubeadm.conf file
+      file:
+        path: /etc/kubernetes/kubeadm.conf
+        state: touch
+    - name: Copy tlsconfig to kubernetes config directory
+      blockinfile:
+        path: /etc/kubernetes/kubeadm.conf
+        content: |
+          apiVersion: kubeadm.k8s.io/v1beta3
+          kind: ClusterConfiguration
+          kubernetesVersion: {{ k8s_version }}
+          ---
+          apiVersion: kubelet.config.k8s.io/v1beta1
+          runtimeRequestTimeout: "15m"
+          kind: KubeletConfiguration
+    - name: Initialize Kubernetes cluster on master node
+      shell: kubeadm init --config=/etc/kubernetes/kubeadm.conf >> /root/kubeinit.log
+      register: kubeadm_init
+    - name: create .kube directory
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0755
+    - name: Copy kube config to user's home directory
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: 0644
+    - name: Install calico network plugin
+      command: kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f https://raw.githubusercontent.com/projectcalico/calico/v{{ k8s_network_plugin_version }}/manifests/calico.yaml

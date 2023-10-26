@@ -1,0 +1,77 @@
+---
+- name: Install Kubernetes with kubeadm on Ubuntu 22.04
+  hosts: all
+  become: true
+  vars:
+    k8s_version: "1.28.*"
+  
+  tasks:
+    - name: Add Kubernetes apt-key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+    - name: add Kubernetes' APT repository
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: 'kubernetes'  
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+    - name: Install apt-transport-https, ca-certificates, curl, gnupg, lsb-release
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+    - name: Install kubeadm, kubelet and kubectl
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - kubeadm={{ k8s_version }}-00
+        - kubelet={{ k8s_version }}-00
+        - kubectl={{ k8s_version }}-00
+    - name: Create modules-load.d directory
+      file:
+        path: /etc/modules-load.d
+        state: directory
+    - name: Load kernel modules
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+    - name: Enable kernel modules
+      command: echo {{ item }} >> /etc/modules-load.d/k8s.conf
+      loop:
+        - overlay
+        - br_netfilter
+    - name: Create sysctl.d directory
+      file:
+        path: /etc/sysctl.d
+        state: directory
+    - name: Set kernel parameters
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 }
+        - { name: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+        - { name: net.ipv4.ip_forward, value: 1 }
+    - name: Apply sysctl settings
+      command: sysctl --system
+    - name: Enable and start kubelet
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
