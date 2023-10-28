@@ -56,6 +56,42 @@ resource "openstack_compute_secgroup_v2" "grupo11sg" {
     cidr        = "0.0.0.0/0"
   }
 
+  # kubelet
+  rule {
+    from_port   = 10250
+    to_port     = 10250
+    ip_protocol = "tcp"
+    cidr        = "10.5.0.0/16"
+  }
+
+  # calico
+  rule {
+    from_port   = 179
+    to_port     = 179
+    ip_protocol = "tcp"
+    cidr        = "10.5.0.0/16"
+  }
+  rule {
+    from_port   = 179
+    to_port     = 179
+    ip_protocol = "udp"
+    cidr        = "10.5.0.0/16"
+  }
+  rule {
+    from_port   = 8472
+    to_port     = 8472
+    ip_protocol = "udp"
+    cidr        = "10.5.0.0/16"
+  }
+
+  # kube-proxy
+  rule {
+    from_port   = 10249
+    to_port     = 10259
+    ip_protocol = "tcp"
+    cidr        = "10.5.0.0/16"
+  }
+
   # node ports
   rule {
     from_port   = 30000
@@ -76,6 +112,7 @@ resource "openstack_compute_instance_v2" "k8s-node" {
 
   metadata = {
     grupo = "11"
+    role = "k8s-node"
   }
 
   network {
@@ -88,7 +125,7 @@ resource "openstack_networking_floatingip_v2" "grupo11_floating_ip" {
   pool = "public"
 }
 
-# attach floating ip to node 0
+# attach floating ip to bastion node (k8s-node-0)
 resource "openstack_compute_floatingip_associate_v2" "grupo11_floating_ip" {
   floating_ip = openstack_networking_floatingip_v2.grupo11_floating_ip.address
   instance_id = openstack_compute_instance_v2.k8s-node[0].id
@@ -118,6 +155,17 @@ EOF
 
 # execute ansible playbooks docker_install.yml and k8s_install.yml
 resource "null_resource" "ansible_docker_install" {
+  provisioner "remote-exec" {
+    # test all nodes are up
+    connection {
+      type = "ssh"
+      host = openstack_compute_floatingip_associate_v2.grupo11_floating_ip.floating_ip
+      user = "ubuntu"
+      private_key = file(var.ssh_key_path)
+    }
+
+    inline = ["echo 'connected!'"]
+  }
   provisioner "local-exec" {
     command = "ansible-playbook -i inventory ansible/playbooks/docker_install.yml"
   }
@@ -133,7 +181,6 @@ resource "null_resource" "ansible_k8s_install" {
 
 # execute ansible playbooks k8s_init.yml
 resource "null_resource" "ansible_k8s_init" {
-  count = length(openstack_compute_instance_v2.k8s-node.*.access_ip_v4) - 1
   provisioner "local-exec" {
     command = "ansible-playbook -i inventory ansible/playbooks/k8s_init.yml"
   }
@@ -142,9 +189,19 @@ resource "null_resource" "ansible_k8s_init" {
 
 # execute ansible playbooks k8s_join.yml
 resource "null_resource" "ansible_k8s_join" {
-  count = length(openstack_compute_instance_v2.k8s-node.*.access_ip_v4) - 1
   provisioner "local-exec" {
     command = "ansible-playbook -i inventory ansible/playbooks/k8s_join.yml"
   }
   depends_on = [null_resource.ansible_k8s_init]
+}
+
+# output the command to copy the kubeconfig file
+output "kubeconfig" {
+  value = "ssh ubuntu@${openstack_compute_floatingip_associate_v2.grupo11_floating_ip.floating_ip} 'cat ~/.kube/config | sed \"s/${openstack_compute_instance_v2.k8s-node[0].access_ip_v4}/k8s-node-0/g\"' > ~/.kube/config"
+}
+output "ssh_control_plane" {
+  value = "ssh ubuntu@${openstack_compute_instance_v2.k8s-node[0].access_ip_v4} -o StrictHostKeyChecking=no -o ProxyCommand=\"ssh -W %h:%p -q ubuntu@${openstack_compute_floatingip_associate_v2.grupo11_floating_ip.floating_ip}\""
+}
+output "public_ip" {
+  value = openstack_compute_floatingip_associate_v2.grupo11_floating_ip.floating_ip
 }
