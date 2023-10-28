@@ -2,8 +2,13 @@
 - name: Install Containerd on Ubuntu 22.04
   hosts: all
   become: true
+  gather_facts: no
   
   tasks:
+    - name: Wait for system to become reachable
+      wait_for_connection:
+    - name: Gather facts for the first time
+      setup:
     - name: Add Docker apt-key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg

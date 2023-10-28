@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars:
-    k8s_version: "1.28.*"
+    k8s_version: "1.28.2"
   
   tasks:
     - name: Add Kubernetes apt-key

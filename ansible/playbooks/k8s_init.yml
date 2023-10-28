@@ -3,9 +3,9 @@
   hosts: master
   become: true
   vars:
-    k8s_version: "1.28.0"
+    k8s_version: "1.28.2"
     k8s_network_plugin: "calico"
-    k8s_network_plugin_version: "3.26.1"
+    k8s_network_plugin_version: "3.26.3"
   
   tasks:
     # Master node specific tasks
@@ -27,7 +27,12 @@
           ---
           apiVersion: kubelet.config.k8s.io/v1beta1
           runtimeRequestTimeout: "15m"
+          #serverTLSBootstrap: true
           kind: KubeletConfiguration
+          # add advertiseAddress and podSubnet
+          #apiServer:
+          #  extraArgs:
+          #    advertise-address: "{{ advertise_address }}"
     - name: Initialize Kubernetes cluster on master node
       shell: kubeadm init --config=/etc/kubernetes/kubeadm.conf >> /root/kubeinit.log
       register: kubeadm_init
