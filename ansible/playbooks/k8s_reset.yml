@@ -1,0 +1,35 @@
+---
+- name: Reset all k8s nodes
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Reset k8s nodes
+      shell: kubeadm reset -f
+      ignore_errors: yes
+      register: kubeadm_reset
+    - name: Remove k8s config directory
+      file:
+        path: /etc/kubernetes
+        state: absent
+      when: kubeadm_reset is changed
+    - name: Remove k8s config directory
+      file:
+        path: /root/.kube
+        state: absent
+      when: kubeadm_reset is changed
+    - name: Remove k8s config directory
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: absent
+      when: kubeadm_reset is changed
+    - name: Remove k8s config directory
+      file:
+        path: /home/{{ ansible_user }}/.minikube
+        state: absent
+      when: kubeadm_reset is changed
+    - name: Remove k8s config directory
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: absent
+      when: kubeadm_reset is changed
