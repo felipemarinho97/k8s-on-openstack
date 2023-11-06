@@ -1,0 +1,24 @@
+---
+- name: Initialize Kubernetes cluster
+  hosts: all
+  become: true
+  vars:
+    k8s_version: "1.28.2"
+  tasks:
+    - name: Add CNI plugins
+      file:
+        path: /opt/cni/bin
+        state: directory
+    - name: Download CNI plugins
+      get_url:
+        url: https://github.com/containernetworking/plugins/releases/download/v1.2.0/cni-plugins-linux-amd64-v1.2.0.tgz
+        dest: /opt/cni/bin/cni-plugins-linux-amd64-v1.2.0.tgz
+    - name: Extract CNI plugins
+      unarchive:
+        src: /opt/cni/bin/cni-plugins-linux-amd64-v1.2.0.tgz
+        dest: /opt/cni/bin
+        remote_src: yes
+    - name: Install flannel network plugin
+      command: kubectl  --kubeconfig=/etc/kubernetes/admin.conf apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      # only run this task on the master node
+      when: inventory_hostname == groups['master'][0]

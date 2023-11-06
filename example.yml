@@ -25,6 +25,13 @@ spec:
         image: docker.io/felipemarinho97/cpubound:latest
         ports:
           - containerPort: 80
+        resources:
+          limits:
+            cpu: 700m
+            memory: 300Mi
+          requests:
+            cpu: 500m
+            memory: 150Mi
 
 ---
 apiVersion: v1

@@ -64,31 +64,27 @@ resource "openstack_compute_secgroup_v2" "grupo11sg" {
     cidr        = "10.5.0.0/16"
   }
 
-  # calico
-  rule {
-    from_port   = 179
-    to_port     = 179
-    ip_protocol = "tcp"
-    cidr        = "10.5.0.0/16"
-  }
-  rule {
-    from_port   = 179
-    to_port     = 179
-    ip_protocol = "udp"
-    cidr        = "10.5.0.0/16"
-  }
-  rule {
-    from_port   = 8472
-    to_port     = 8472
-    ip_protocol = "udp"
-    cidr        = "10.5.0.0/16"
-  }
-
   # kube-proxy
   rule {
     from_port   = 10249
     to_port     = 10259
     ip_protocol = "tcp"
+    cidr        = "10.5.0.0/16"
+  }
+
+  # flannel vxlan
+  rule {
+    from_port   = 4789
+    to_port     = 4789
+    ip_protocol = "udp"
+    cidr        = "10.5.0.0/16"
+  }
+
+  # flannel vtep
+  rule {
+    from_port   = 8472
+    to_port     = 8472
+    ip_protocol = "udp"
     cidr        = "10.5.0.0/16"
   }
 
@@ -185,6 +181,14 @@ resource "null_resource" "ansible_k8s_init" {
     command = "ansible-playbook -i inventory ansible/playbooks/k8s_init.yml"
   }
   depends_on = [null_resource.ansible_k8s_install, null_resource.ansible_docker_install]
+}
+
+# execute ansible playbooks k8s_cni.yml
+resource "null_resource" "ansible_k8s_cni" {
+  provisioner "local-exec" {
+    command = "ansible-playbook -i inventory ansible/playbooks/k8s_cni.yml"
+  }
+  depends_on = [null_resource.ansible_k8s_init]
 }
 
 # execute ansible playbooks k8s_join.yml
